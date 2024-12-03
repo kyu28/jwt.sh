@@ -42,14 +42,24 @@ secret: string when using HS256, HS384, HS512
         this field will be omitted when using none alg
 pubkey: public key path when using RS256, RS384, RS512
 ```
+
+### Encode and sign a JWT using none alg
+```sh
+jwt.sh enc none '{"hello": "world"}'
+```
+
 ### Encode and sign a JWT using HS256, HS384, HS512
 ```sh
-jwt.sh enc '{"hello": "world"}' 'i_am_a_secret_key'
+jwt.sh enc HS256 '{"hello": "world"}' 'i_am_a_secret_key'
+jwt.sh enc HS384 '{"hello": "world"}' 'i_am_a_secret_key'
+jwt.sh enc HS512 '{"hello": "world"}' 'i_am_a_secret_key'
 ```
 
 ### Encode and sign a JWT using RS256, RS384, RS512
 ```sh
-jwt.sh enc '{"hello": "world"}' '/path/to/rsa/private_key.pem'
+jwt.sh enc RS256 '{"hello": "world"}' '/path/to/rsa/private_key.pem'
+jwt.sh enc RS384 '{"hello": "world"}' '/path/to/rsa/private_key.pem'
+jwt.sh enc RS512 '{"hello": "world"}' '/path/to/rsa/private_key.pem'
 ```
 
 ### Decode and verify a JWT
