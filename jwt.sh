@@ -21,12 +21,8 @@ base64url_decode() {
     base64_padding | sed 's/_/\//g' | sed 's/-/+/g' | base64 -d
 }
 
-to_hex() {
-    printf "$1" | xxd -p
-}
-
 hs() {
-    openssl dgst -sha$1 -mac HMAC -macopt "hexkey:$2" -binary
+    openssl dgst -sha$1 -mac HMAC -macopt "key:$2" -binary
 }
 
 rs_sign() {
@@ -38,7 +34,7 @@ rs_verify() {
 }
 
 jwt_encode() {
-    secret=$3
+    secret="$3"
     header=$(printf '{"alg":"'$1'","typ":"JWT"}' | base64url_encode)
     payload=$(printf "%s" "$2" | sed 's/ //g' | base64url_encode)
     if [ "$1" = "none" ]; then
@@ -50,7 +46,7 @@ jwt_encode() {
     bits=${1#$method}
     case "$method" in
     HS)
-        signature=$(printf "%s" "$header.$payload" | hs $bits $(to_hex "$secret" | base64url_encode));;
+        signature=$(printf "%s" "$header.$payload" | hs $bits "$secret" | base64url_encode);;
     RS)
         signature=$(printf "%s" "$header.$payload" | rs_sign $bits "$secret" | base64url_encode);;
     *)
@@ -82,7 +78,7 @@ jwt_decode() {
     bits=${alg#$method}
     case "$method" in
     HS)
-        calc_sign=$(printf "$header.$payload" | hs $bits $(to_hex "$secret") | base64url_encode);;
+        calc_sign=$(printf "$header.$payload" | hs $bits "$secret" | base64url_encode);;
     RS)
         if [ "$secret" = "--pub" ]; then
             tmp_file=".tmp.sign"
