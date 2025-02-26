@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # jwt.sh - encode, decode and verify JWT
-# dependencies: openssl base64 xxd sed
+# dependencies: openssl base64 sed
 
 base64url_encode() {
     base64 -w0 | sed 's/+/-/g' | sed 's/\//_/g' | sed 's/=//g'
@@ -9,7 +9,7 @@ base64url_encode() {
 
 base64_padding() {
     read chars
-    printf $chars
+    printf "%s" $chars
     paddings=$(( (8 - (${#chars} * 6) % 8) % 8 ))
     while [ $paddings -gt 0 ]; do
         printf "="
@@ -36,7 +36,11 @@ rs_verify() {
 jwt_encode() {
     secret="$3"
     header=$(printf '{"alg":"'$1'","typ":"JWT"}' | base64url_encode)
-    payload=$(printf "%s" "$2" | sed 's/ //g' | base64url_encode)
+    if [ "$2" = "-" ]; then
+        payload=$(sed 's/ //g' | base64url_encode)
+    else
+        payload=$(printf "%s" "$2" | sed 's/ //g' | base64url_encode)
+    fi
     if [ "$1" = "none" ]; then
         echo "$header.$payload."
         return
@@ -58,17 +62,24 @@ jwt_encode() {
 
 jwt_decode() {
     secret=$2
-    header=${1%%.*}
-    payload=${1%.*}
+    tok=$1
+    if [ "$1" = "-" ]; then
+        tok=
+        while read line || [ -n "$line" ] ; do
+            tok=$tok$line
+        done
+    fi
+    header=${tok%%.*}
+    payload=${tok%.*}
     payload=${payload#*.}
-    signature=${1##*.}
+    signature=${tok##*.}
     echo HEADER:
     echo $header | base64url_decode
     echo
     echo PAYLOAD:
     echo $payload | base64url_decode
     echo
-    alg=$(printf $header | base64url_decode |
+    alg=$(printf "%s" $header | base64url_decode |
         sed -n -e 's/.*"alg": *"\([a-zA-Z0-9]*\)".*/\1/p')
     if [ "$alg" = "none" ] || [ -z "$secret" ]; then
         echo "Signature Verify Skipped"
@@ -98,7 +109,9 @@ jwt_decode() {
             calc_sign=$(printf "$header.$payload" | rs_sign $bits "$secret" | base64url_encode)
         fi;;
     *)
-        echo "error: unsupported alg \"$alg\"";;
+        echo "error: unsupported alg \"$alg\""
+        echo "Signature Verify Skipped"
+        exit 1;;
     esac
     if [ "$calc_sign" = "$signature" ]; then
         echo "Signature Verified"
@@ -115,18 +128,26 @@ Usage:
 $0 enc [alg] [payload] [secret]
 $0 dec [token] [secret]
 $0 dec [token] --pub [pubkey]
+
 alg: none HS256 HS384 HS512 RS256 RS384 RS512
+payload: JWT payload. If [payload] is -, then the payload
+         is read from STDIN.
 secret: string when using HS256, HS384, HS512
         private key path when using RS256, RS384, RS512
         this field will be omitted when using none alg       
+token:  JWT token. If [token] is -, then the token is
+        read from STDIN.
 
 Example:
 $0 enc HS256 '{"hello":"world"}' 'i_am_a_secret'
+$0 enc HS256 - 'i_am_a_secret'
 $0 enc RS384 '{"hello":"world"}' '/path/to/private_key.pem'
 $0 enc none '{"hello":"world"}'
+
 $0 dec eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrIjoidiJ9.\
 euqFBgx-u-yFgwYu8w2-e5_SFyZjMcVr61_O5rewDw8 'i_am_a_secret'
 $0 dec eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJoZWxsbyI6IndvcmxkIn0.
+$0 dec - 'i_am_a_secret'
 EOF
 }
 
