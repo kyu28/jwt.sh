@@ -37,9 +37,9 @@ jwt_encode() {
     secret="$3"
     header=$(printf '{"alg":"'$1'","typ":"JWT"}' | base64url_encode)
     if [ "$2" = "-" ]; then
-        payload=$(sed 's/ //g' | base64url_encode)
+        payload=$(base64url_encode)
     else
-        payload=$(printf "%s" "$2" | sed 's/ //g' | base64url_encode)
+        payload=$(printf "%s" "$2" | base64url_encode)
     fi
     if [ "$1" = "none" ]; then
         echo "$header.$payload."
